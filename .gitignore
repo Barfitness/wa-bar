@@ -1,0 +1,20 @@
+# Dependencies (תלויות) - הכי חשוב!
+node_modules/
+
+# Environment variables / Secrets (משתני סביבה / סודות)
+.env
+.env.*
+*.env
+
+# Runtime generated content / User uploads / Other secrets ( תוכן שנוצר בריצה / העלאות משתמשים / סודות אחרים)
+tokens/
+recordings/
+uploads/
+*.log
+
+# Optional: IDE/Editor specific (ספציפי לסביבת הפיתוח - אופציונלי)
+# .vscode/  <-- אם אתה לא רוצה לשתף הגדרות VSCode, הסר את ה-# מההתחלה
+
+# Optional: OS generated files (קבצים שנוצרים ע"י מערכת ההפעלה - מומלץ)
+.DS_Store
+Thumbs.db

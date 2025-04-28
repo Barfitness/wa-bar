@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot Manager - All Sessions</title>
+    <!-- קישור ל-Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- הוספת קישור לספריית Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- קישור לקובץ ה-CSS החיצוני -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Initial Loader (Shown while checking session) -->
+    <div class="page-loader" id="initial-loader">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--accent-light);"></i>
+    </div>
+
+    <!-- Login Page Container (Shown if not logged in) -->
+    <div id="login-page" class="login-page" style="display: none;">
+        <div class="login-card">
+            <h2>מנהל WhatsApp Bot</h2>
+            <p class="login-subtitle">התחבר או הירשם כדי להמשיך</p>
+
+            <div id="auth-error-message" class="auth-error-message" style="display: none;"></div>
+
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="login-email">אימייל</label>
+                    <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="email">
+                </div>
+                <div class="input-group">
+                    <label for="login-password">סיסמה</label>
+                    <input type="password" id="login-password" placeholder="********" required autocomplete="current-password">
+                </div>
+                <button type="submit" id="login-button" class="auth-button">
+                    <span class="button-text">התחבר</span>
+                    <i class="fas fa-spinner fa-spin loading-icon" style="display: none;"></i>
+                </button>
+            </form>
+
+            <!-- Register Form (Hidden by default) -->
+            <form id="register-form" style="display: none;">
+                <div class="input-group">
+                    <label for="register-email">אימייל</label>
+                    <input type="email" id="register-email" placeholder="your@email.com" required autocomplete="email">
+                </div>
+                <div class="input-group">
+                    <label for="register-password">סיסמה</label>
+                    <input type="password" id="register-password" placeholder="לפחות 6 תווים" required autocomplete="new-password">
+                </div>
+                <div class="input-group">
+                   <label for="register-confirm-password">אימות סיסמה</label>
+                   <input type="password" id="register-confirm-password" placeholder="הקלד שוב את הסיסמה" required autocomplete="new-password">
+                </div>
+                <button type="submit" id="register-button" class="auth-button">
+                    <span class="button-text">הירשם</span>
+                    <i class="fas fa-spinner fa-spin loading-icon" style="display: none;"></i>
+                </button>
+            </form>
+
+            <div class="toggle-form">
+                <a href="#" id="toggle-form-link">אין לך חשבון? הירשם</a>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Main Application Container (Hidden initially, shown after login) -->
+    <div class="main-container" id="main-container" style="display: none;">
+        <div class="sidebar" id="sidebar">
+            <div class="server-status" id="server-status">
+                <div class="status-indicator">
+                    <div class="status-dot offline" id="status-dot"></div>
+                    <span class="status-text" id="status-text">מנותק</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="icon-btn" id="settings-btn" title="הגדרות AI"> <i class="fas fa-cog"></i> </button>
+                    <button class="icon-btn ai-toggle-btn ai-enabled" id="ai-toggle-btn" title="כבה/הדלק AI"> <i class="fas fa-robot"></i> </button>
+                    <button class="icon-btn power-btn disconnected" id="power-btn" title="התחבר/התנתק לשרת ה-WS"> <i class="fas fa-power-off"></i> </button>
+                </div>
+            </div>
+            <div class="search-box">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="חפש או התחל צ'אט חדש" id="search-input">
+                </div>
+            </div>
+            <!-- Chat Filters -->
+            <div class="chat-filters">
+                <button class="filter-btn active" id="filter-all-btn" title="כל השיחות" data-filter="all">
+                    <i class="fas fa-comments"></i>
+                </button>
+                <button class="filter-btn" id="filter-unread-btn" title="הודעות שלא נקראו" data-filter="unread">
+                    <i class="fas fa-envelope"></i>
+                </button>
+                <button class="filter-btn" id="filter-favorite-btn" title="מועדפים" data-filter="favorite">
+                    <i class="fas fa-star"></i> <!-- Using star for favorites/pinned -->
+                </button>
+            </div>
+            <div class="chats-container" id="chats-container">
+                <!-- Chat list populated by JS -->
+            </div>
+        </div>
+
+        <div class="chat-area" id="chat-area">
+            <div class="chat-header">
+                <div class="back-button" id="back-button"> <i class="fas fa-arrow-left"></i> </div>
+                <div id="chat-avatar" class="chat-avatar"> <i class="fas fa-user"></i> </div>
+                <!-- Updated chat-header-info structure -->
+                <div class="chat-header-info">
+                    <div class="chat-header-name-container">
+                        <span id="chat-header-name" class="chat-header-name">בחר צ'אט</span>
+                        <!-- Phone number below name -->
+                        <span id="chat-header-phone" class="chat-header-phone" style="display: none;"></span>
+                        <!-- Session and Label tags -->
+                        <span id="chat-session-indicator" class="chat-session-indicator"></span>
+                        <span class="chat-label-tag" id="chat-header-label"></span>
+                    </div>
+                    <!-- Status (e.g., 'Active') moved below name/phone/tags -->
+                    <div id="chat-status" class="chat-status">WhatsApp Bot</div>
+                </div>
+                <!-- End Updated chat-header-info -->
+                <div class="chat-actions">
+                    <!-- Buttons like mute, search, options are here -->
+                    <i class="fas fa-volume-mute icon-btn" id="mute-button" title="השתק שיחה"></i>
+                    <i class="fas fa-search icon-btn" id="search-chat-btn" title="חפש בשיחה"></i>
+                    <i class="fas fa-ellipsis-vertical icon-btn" id="chat-options-btn" title="אפשרויות נוספות"></i>
+                    <!-- Theme and Logout buttons are added dynamically by JS -->
+                </div>
+            </div>
+
+            <div class="search-message-container" id="search-message-container" style="display: none;">
+                <div>
+                    <i class="fas fa-times icon-btn" id="close-search-msg-btn" title="סגור חיפוש"></i>
+                    <input type="text" id="search-message-input" placeholder="חפש בשיחה">
+                    <span id="search-result-count">0/0</span>
+                    <i class="fas fa-arrow-up icon-btn" id="search-prev-btn" title="תוצאה קודמת"></i>
+                    <i class="fas fa-arrow-down icon-btn" id="search-next-btn" title="תוצאה הבאה"></i>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="empty-state" id="empty-state">
+                    <img src="img/whatsapp.png" alt="WhatsApp">
+                    <h2>מנהל הבוט של WhatsApp</h2>
+                    <p>בחר צ'אט מהרשימה כדי לצפות בשיחה ולנהל את האינטראקציות של הבוט שלך מכל הסשנים.</p>
+                </div>
+            </div>
+
+            <!-- Panels (File Upload, Emoji, Recording, Mute) -->
+            <div class="file-upload-panel" id="file-upload-panel">
+                <div class="file-upload-options">
+                    <div class="file-option" id="photo-option"> <i class="fas fa-image"></i> <span>תמונה</span> </div>
+                    <div class="file-option" id="video-option"> <i class="fas fa-video"></i> <span>סרטון</span> </div>
+                    <div class="file-option" id="document-option"> <i class="fas fa-file-alt"></i> <span>מסמך</span> </div>
+                    <div class="file-option" id="audio-option"> <i class="fas fa-music"></i> <span>שמע</span> </div>
+                    <div class="file-option" id="contact-option"> <i class="fas fa-address-card"></i> <span>איש קשר</span> </div>
+                    <div class="file-option" id="location-option"> <i class="fas fa-map-marker-alt"></i> <span>מיקום</span> </div>
+                </div>
+                <input type="file" id="photo-upload" class="custom-file-input" accept="image/*">
+                <input type="file" id="video-upload" class="custom-file-input" accept="video/*">
+                <input type="file" id="document-upload" class="custom-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.zip,.rar">
+                <input type="file" id="audio-upload" class="custom-file-input" accept="audio/*">
+            </div>
+
+            <div class="emoji-panel" id="emoji-panel">
+                <div class="emoji-categories">
+                    <div class="emoji-category active" data-category="smileys"> <i class="far fa-smile"></i> </div>
+                    <div class="emoji-category" data-category="people"> <i class="far fa-hand-peace"></i> </div>
+                    <div class="emoji-category" data-category="animals"> <i class="fas fa-paw"></i> </div>
+                    <div class="emoji-category" data-category="food"> <i class="fas fa-pizza-slice"></i> </div>
+                    <div class="emoji-category" data-category="travel"> <i class="fas fa-plane"></i> </div>
+                    <div class="emoji-category" data-category="activities"> <i class="fas fa-futbol"></i> </div>
+                    <div class="emoji-category" data-category="objects"> <i class="fas fa-lightbulb"></i> </div>
+                    <div class="emoji-category" data-category="symbols"> <i class="fas fa-heart"></i> </div>
+                </div>
+                <div class="emoji-grid" id="emoji-grid"></div>
+            </div>
+
+            <div class="recording-ui" id="recording-ui">
+                <div class="recording-visualization">
+                    <div class="recording-waveform">
+                        <div class="recording-bars">
+                            <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div> <div class="recording-bar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="recording-timer" id="recording-timer">00:00</div>
+                <div class="recording-actions">
+                    <button class="recording-btn" id="cancel-recording-btn" title="בטל הקלטה"> <i class="fas fa-trash"></i> </button>
+                    <button class="recording-btn stop" id="stop-recording-btn" title="עצור הקלטה"> <i class="fas fa-stop"></i> </button>
+                    <button class="recording-btn send" id="send-recording-btn" title="שלח הקלטה"> <i class="fas fa-paper-plane"></i> </button>
+                </div>
+            </div>
+
+            <div class="mute-interface" id="mute-interface">
+                <h3>השתק <span id="mute-name">איש קשר זה</span></h3>
+                <div class="mute-options">
+                    <label class="mute-option"> <input type="radio" name="mute-duration" value="8"> 8 שעות </label>
+                    <label class="mute-option"> <input type="radio" name="mute-duration" value="24"> 24 שעות </label>
+                    <label class="mute-option"> <input type="radio" name="mute-duration" value="forever" checked> לצמיתות </label>
+                </div>
+                <div class="mute-buttons">
+                    <button class="mute-button cancel" id="mute-cancel">ביטול</button>
+                    <button class="mute-button" id="mute-confirm">השתק</button>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <i class="far fa-face-smile icon-btn" id="emoji-btn" title="פתח אימוג'ים"></i>
+                <i class="fas fa-paperclip icon-btn" id="attachment-btn" title="צרף קובץ"></i>
+                <div class="chat-input" contenteditable="true" placeholder="הקלד הודעה" id="chat-input"></div>
+                <i class="fas fa-microphone icon-btn" id="voice-btn" title="לחץ להקלטה, לחץ פעמיים להכתבה"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Context Menus -->
+    <div class="context-menu" id="message-context-menu">
+        <div class="menu-item" id="save-message"> <i class="fas fa-heart"></i> <span>שמור הודעה</span> </div>
+        <div class="menu-item" id="copy-message"> <i class="fas fa-copy"></i> <span>העתק הודעה</span> </div>
+        <div class="menu-item" id="react-message"> <i class="far fa-smile"></i> <span>הגב להודעה</span> </div>
+        <div class="menu-item" id="forward-message" style="display: none;"> <i class="fas fa-share"></i> <span>העבר הודעה</span> </div>
+        <div class="menu-item" id="delete-message"> <i class="fas fa-trash"></i> <span>מחק הודעה</span> </div>
+    </div>
+
+    <div class="context-menu" id="chat-context-menu">
+        <div class="menu-item" id="pin-chat"> <i class="fas fa-thumbtack"></i> <span>נעץ שיחה</span> </div> <!-- Assuming Favorite = Pinned -->
+        <div class="menu-item" id="change-label-chat"> <i class="fas fa-tag"></i> <span>שנה תגית</span> <i class="fas fa-chevron-left submenu-arrow"></i></div>
+        <div class="menu-item" id="add-contact"> <i class="fas fa-user-plus"></i> <span>פרטי איש קשר</span> </div> <!-- Changed text -->
+        <div class="menu-item" id="export-chat"> <i class="fas fa-file-export"></i> <span>ייצוא שיחה (PDF)</span> </div>
+        <div class="menu-item" id="mute-chat"> <i class="fas fa-volume-mute"></i> <span>השתק שיחה</span> </div>
+        <div class="menu-item" id="delete-chat"> <i class="fas fa-trash"></i> <span>מחק שיחה (מממשק)</span> </div>
+    </div>
+
+    <!-- Label Selection Sub-Menu -->
+    <div class="context-menu label-selection-menu" id="label-selection-menu">
+        <div class="menu-item" data-label="new"> <span class="label-color-dot blue"></span> חדש </div>
+        <div class="menu-item" data-label="inprogress"> <span class="label-color-dot orange"></span> בתהליך </div>
+        <div class="menu-item" data-label="paid"> <span class="label-color-dot green"></span> שולם </div>
+        <div class="menu-item" data-label="waiting"> <span class="label-color-dot purple"></span> ממתין לשיחה </div>
+        <div class="menu-item" data-label="notinterested"> <span class="label-color-dot red"></span> לא מעוניין </div>
+    </div>
+
+    <!-- Chat Actions Menu (Three Dots) -->
+    <div class="context-menu chat-actions-menu" id="chat-actions-menu">
+        <div class="menu-item" id="open-contact-info-action"> <i class="fas fa-user-circle"></i> <span>פרטי איש קשר</span> </div> <!-- Changed ID -->
+        <div class="menu-item" id="select-messages-action"> <i class="fas fa-check-square"></i> <span>בחר הודעות</span> </div>
+        <div class="menu-item" id="clear-chat-action"> <i class="fas fa-eraser"></i> <span>נקה שיחה (מממשק)</span> </div>
+        <div class="menu-item" id="delete-chat-action-from-menu"> <i class="fas fa-trash"></i> <span>מחק שיחה (מממשק)</span> </div>
+        <!-- Mobile items -->
+        <div class="menu-item" id="search-action-from-menu"> <i class="fas fa-search"></i> <span>חיפוש</span> </div>
+        <div class="menu-item" id="mute-action-from-menu"> <i class="fas fa-volume-mute"></i> <span>השתק</span> </div>
+        <div class="menu-item" id="theme-action-from-menu"> <i class="fas fa-adjust"></i> <span>ערכת נושא</span> </div>
+        <div class="menu-item" id="logout-action-from-menu"> <i class="fas fa-sign-out-alt"></i> <span>התנתק</span> </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="settings-modal">
+        <div class="settings-modal-content">
+            <div class="settings-modal-header">
+                <h2>הגדרות AI</h2>
+                <span class="settings-modal-close" id="settings-modal-close">×</span>
+            </div>
+            <div class="settings-modal-body">
+                <div class="input-group">
+                    <label for="ai-instructions">הנחיות מערכת (System Prompt)</label>
+                    <textarea id="ai-instructions" rows="6" placeholder="הזן כאן את ההנחיות עבור הבוט..."></textarea>
+                </div>
+                <div class="input-group">
+                    <label for="ai-model">מודל שפה</label>
+                    <select id="ai-model">
+                        <option value="gpt-3.5-turbo">ChatGPT 3.5 Turbo</option>
+                        <option value="gpt-4o">ChatGPT 4o</option>
+                        <option value="gpt-4o-mini">ChatGPT 4o Mini</option>
+                        <!-- New Models Added -->
+                        <option value="gpt-4.1-mini-2025-04-14">ChatGPT 4.1 Mini (Apr 2025)</option>
+                        <option value="gpt-4.1-nano-2025-04-14">ChatGPT 4.1 Nano (Apr 2025)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="ai-temperature">טמפרטורה (יצירתיות, 0-1)</label>
+                    <input type="number" id="ai-temperature" step="0.1" min="0" max="1" placeholder="0.4">
+                </div>
+                <div class="input-group">
+                    <label for="ai-max-tokens">מקסימום טוקנים לתשובה</label>
+                    <input type="number" id="ai-max-tokens" min="50" placeholder="300">
+                </div>
+                <div class="input-group">
+                    <label for="ai-delay">השהייה בין הודעות (שניות)</label>
+                    <input type="number" id="ai-delay" min="0" placeholder="5">
+                </div>
+            </div>
+            <div class="settings-modal-actions">
+                <button id="cancel-settings-btn" class="secondary">ביטול</button>
+                <button id="save-settings-btn" class="primary">שמור הגדרות</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="qr-modal" style="display: none;">
+        <div class="qr-modal-content">
+            <span class="qr-modal-close" id="qr-modal-close">×</span>
+            <h3>סרוק קוד לסשן: <span id="qr-session-name"></span></h3>
+            <div id="qr-code-container">
+                 <img id="qr-code-img" src="" alt="QR Code" style="display: block; margin: 20px auto; max-width: 90%; border: 1px solid var(--border-color);">
+                 <div id="qr-loading" style="text-align: center; padding: 30px; display: none;">
+                     <i class="fas fa-spinner fa-spin fa-2x"></i><br>טוען QR...
+                 </div>
+            </div>
+            <p style="text-align: center; font-size: 0.9rem; color: var(--text-secondary); margin-top: 15px;">
+                פתח את WhatsApp > הגדרות > מכשירים מקושרים > קשר מכשיר
+            </p>
+        </div>
+    </div>
+
+    <!-- Contact Info Modal -->
+    <div id="contact-info-modal" class="contact-info-modal">
+        <div class="contact-info-modal-content">
+            <div class="contact-info-modal-header">
+                <h2>פרטי איש קשר</h2>
+                <span class="contact-info-modal-close" id="contact-info-modal-close">×</span>
+            </div>
+            <div class="contact-info-modal-body">
+                <div class="input-group">
+                    <label for="contact-info-name">שם</label>
+                    <input type="text" id="contact-info-name" placeholder="הכנס שם...">
+                </div>
+                <div class="input-group">
+                    <label for="contact-info-field">תחום עיסוק</label>
+                    <input type="text" id="contact-info-field" placeholder="הכנס תחום עיסוק...">
+                </div>
+                 <div class="input-group">
+                    <label>מספר טלפון</label>
+                    <span id="contact-info-phone" class="contact-info-display-field"></span>
+                </div>
+                <div class="input-group">
+                     <label for="contact-info-label">תגית</label>
+                     <select id="contact-info-label">
+                         <!-- Options added by JS -->
+                     </select>
+                 </div>
+                <div class="input-group">
+                    <label for="contact-info-notes">הערות</label>
+                    <textarea id="contact-info-notes" rows="4" placeholder="הוסף הערות..."></textarea>
+                </div>
+                <div class="input-group">
+                    <label>שיחה קבועה</label>
+                    <div id="contact-info-scheduled-call" class="contact-info-display-field">(מידע על שיחה קבועה יופיע כאן)</div>
+                </div>
+            </div>
+            <div class="contact-info-modal-actions">
+                <button id="save-contact-info-btn" class="primary">שמור שינויים</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- !!! קישור לקובץ ה-JS החיצוני !!! -->
+    <script src="js/scripts.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "venombotnew",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "axios": "^1.8.4",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.5.48",
+    "multer": "^1.4.5-lts.2",
+    "venom-bot": "^5.3.0",
+    "ws": "^8.18.1"
+  }
+}
